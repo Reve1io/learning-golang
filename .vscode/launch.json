@@ -1,0 +1,20 @@
+{
+ "version": "0.2.0",
+ "configurations": [
+ {
+ "name": "Debug with Args",
+ "type": "go",
+ "request": "launch", // тип launch
+ "mode": "auto",
+ "program": "${workspaceFolder}/cmd", // расположение main.go
+ "args": [ // аргументы для программы
+ "5",
+ "+",
+ "3"
+ ],
+ "env": { // переменные окружения для программы
+ "DEBUG_MODE":"true",
+ }
+ }
+ ]
+}
