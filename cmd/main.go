@@ -2,17 +2,12 @@ package main
 
 import (
 	"fmt"
-	"test/model"
+	_ "net/http/pprof"
 	arrays "test/tutorials/Arrays"
 )
 
 func main() {
-	users := []model.User{
-		{Name: "Семен", Email: "semen@example.com"},
-		{Name: "Юля", Email: "yulia@gmail.com"},
-		{Name: "Алексей", Email: "alex@example.com"},
-	}
-
-	result := arrays.FindUserNames(users)
+	prices := []int{100, 50}
+	result := arrays.AddSiscount(prices, 100)
 	fmt.Println(result)
 }
