@@ -42,10 +42,13 @@ var synthetics = []struct {
 
 func ComparisonOfSlicesTest(t *testing.T) {
 	for _, synthetic := range synthetics {
-		equal := arrays.AreOrderHistoriesEqual(synthetic.history1, synthetics.history2)
+		equal := arrays.AreOrderHistoriesEqual(synthetic.history1, synthetic.history2)
 
-		if equal == synthetics.out {
-
+		if equal != synthetic.out {
+			t.Fatal("The result does not match the expected result")
+		} else {
+			t.Log("Ok!")
 		}
+
 	}
 }
