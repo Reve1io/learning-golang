@@ -2,17 +2,14 @@ package main
 
 import (
 	"fmt"
-	"test/model"
 	arrays "test/tutorials/Arrays"
 )
 
 func main() {
-	users := []model.User{
-		{Name: "Семен", Email: "semen@example.com"},
-		{Name: "Юля", Email: "yulia@gmail.com"},
-		{Name: "Алексей", Email: "alex@example.com"},
-	}
+	history1 := [][]string{{"milk", "bread"}, {"apple", "banana"}}
+	history2 := [][]string{{"milk", "bread"}, {"apple", "banana"}}
 
-	result := arrays.FindUserNames(users)
+	result := arrays.AreOrderHistoriesEqual(history1, history2)
+
 	fmt.Println(result)
 }
