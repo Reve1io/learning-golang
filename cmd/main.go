@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	arrays "test/tutorials/Arrays"
+	"test/tutorials/mapp"
 )
 
 func main() {
-	history1 := [][]string{{"milk", "bread"}, {"apple", "banana"}}
-	history2 := [][]string{{"milk", "bread"}, {"apple", "banana"}}
+	history := [][]string{{"milk", "banana"}, {"apple", "banana"}}
 
-	result := arrays.AreOrderHistoriesEqual(history1, history2)
+	result := mapp.CountProducts(history)
 
 	fmt.Println(result)
 }
