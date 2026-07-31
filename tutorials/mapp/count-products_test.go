@@ -55,7 +55,7 @@ func TestCountProducts(t *testing.T) {
 			if got == nil {
 				t.Errorf("CountProducts(%v) = %v; want %v", tt.input, got, tt.want)
 			}
-			if equal != true || got != nil {
+			if equal != true {
 				t.Errorf("CountProducts(%v) = %v; want %v", tt.input, got, tt.want)
 			}
 		})

@@ -9,12 +9,7 @@ func CountProducts(history [][]string) map[string]int {
 
 	for _, order := range history {
 		for _, item := range order {
-			exist := products[item]
-			if exist != 0 {
-				products[item]++
-			} else {
-				products[item] = 1
-			}
+			products[item]++
 		}
 	}
 	return products
