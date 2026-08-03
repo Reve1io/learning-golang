@@ -1,19 +1,17 @@
-package structuresandmethods
+package ordersservice
 
 import (
 	"errors"
 	"fmt"
 )
 
-type Item struct {
-	SKU        string
-	PriceCents int64
-	Quantity   int
+type OrderRepository interface {
+	Save(order Order) error
+	Get(id string) (Order, error)
 }
 
-type Order struct {
-	ID    string
-	Items []Item
+type OrderService struct {
+	repo OrderRepository
 }
 
 var (
@@ -23,46 +21,41 @@ var (
 	ErrDuplicateOrder = errors.New("duplicate order")
 )
 
-type OrderRepository interface {
-	Save(order Order) error
-	Get(id string) (Order, error)
-}
-
-type MemoryOrderRepository struct {
-	orders map[string]Order
-}
-
-func NewMemoryOrderRepository() *MemoryOrderRepository {
-	orders := make(map[string]Order)
-
-	return &MemoryOrderRepository{orders: orders}
-}
-
-func (r *MemoryOrderRepository) Save(order Order) error {
-	r.orders[order.ID] = order
-	return nil
-}
-
-func (r *MemoryOrderRepository) Get(id string) (Order, error) {
-	order, ok := r.orders[id]
-	if ok != true {
-		return Order{}, ErrOrderNotFound
+func NewOrderService(repo OrderRepository) *OrderService {
+	return &OrderService{
+		repo: repo,
 	}
-	return order, nil
 }
 
-func ProcessOrder(order Order) (int64, error) {
-	var total int64 = 0
-	var err error
+func (s *OrderService) Create(order Order) error {
+	if order.IsEmpty() {
+		return ErrEmptyOrder
+	}
 
-	err = order.Validation()
+	if err := order.Validation(); err != nil {
+		return fmt.Errorf("error: %w", err)
+	}
+
+	_, err := s.repo.Get(order.ID)
+	if err == nil {
+		return ErrDuplicateOrder
+	}
+
+	return s.repo.Save(order)
+}
+
+func (s *OrderService) GetOrderByID(id string) (Order, error) {
+	o, err := s.repo.Get(id)
 	if err != nil {
-		return total, err
-	} else {
-		total = order.TotalCents()
+		return Order{}, err
 	}
+	return o, nil
+}
 
-	return total, err
+func (s *OrderService) CountOrder(order Order) int64 {
+	totalOrder := order.TotalCents()
+
+	return totalOrder
 }
 
 func (o Order) TotalCents() int64 {

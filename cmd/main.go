@@ -2,13 +2,41 @@ package main
 
 import (
 	"fmt"
-	"test/tutorials/mapp"
+	ordersservice "test/projects/orders-service"
 )
 
 func main() {
-	history := [][]string{{"milk", "banana"}, {"apple", "banana"}}
+	orders := []ordersservice.Order{
+		{
+			ID: "1",
+			Items: []ordersservice.Item{
+				{SKU: "milk", PriceCents: 199, Quantity: 2},
+				{SKU: "bread", PriceCents: 500, Quantity: 1},
+			},
+		},
+		{
+			ID: "1",
+			Items: []ordersservice.Item{
+				{SKU: "Strawberry", PriceCents: 199, Quantity: 2},
+				{SKU: "Apple", PriceCents: 500, Quantity: 1},
+			},
+		},
+	}
+	repo := ordersservice.NewMemoryOrderRepository()
 
-	result := mapp.CountProducts(history)
+	service := ordersservice.NewOrderService(repo)
 
-	fmt.Println(result)
+	for _, order := range orders {
+		push := service.Create(order)
+		fmt.Println(push)
+
+		getedOrder, err := service.GetOrderByID(order.ID)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Printf("Order: %v\n", getedOrder)
+
+		totalPrice := service.CountOrder(order)
+		fmt.Printf("Total order: %v\n", totalPrice)
+	}
 }
