@@ -1,7 +1,9 @@
 package ordersservice_test
 
 import (
+	"context"
 	"errors"
+	"sync"
 	ordersservice "test/projects/orders-service"
 	"testing"
 )
@@ -132,14 +134,13 @@ func TestValidateOrder(t *testing.T) {
 
 func TestSavingOrder(t *testing.T) {
 	tests := []struct {
-		name   string
-		input1 []ordersservice.Order
-		input2 []ordersservice.Order
-		want   error
+		name  string
+		input []ordersservice.Order
+		want  error
 	}{
 		{
 			name: "Two item case",
-			input1: []ordersservice.Order{
+			input: []ordersservice.Order{
 				{
 					ID: "1",
 					Items: []ordersservice.Item{
@@ -147,8 +148,6 @@ func TestSavingOrder(t *testing.T) {
 						{SKU: "bread", PriceCents: 500, Quantity: 1},
 					},
 				},
-			},
-			input2: []ordersservice.Order{
 				{
 					ID: "2",
 					Items: []ordersservice.Item{
@@ -161,7 +160,7 @@ func TestSavingOrder(t *testing.T) {
 		},
 		{
 			name: "Duplicate item case",
-			input1: []ordersservice.Order{
+			input: []ordersservice.Order{
 				{
 					ID: "3",
 					Items: []ordersservice.Item{
@@ -169,8 +168,6 @@ func TestSavingOrder(t *testing.T) {
 						{SKU: "bread", PriceCents: 500, Quantity: 1},
 					},
 				},
-			},
-			input2: []ordersservice.Order{
 				{
 					ID: "3",
 					Items: []ordersservice.Item{
@@ -185,14 +182,23 @@ func TestSavingOrder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			repo := ordersservice.NewMemoryOrderRepository()
 			service := ordersservice.NewOrderService(repo)
 
-			for _, inp := range tt.input {
-				got := service.Create(inp)
-				if !errors.Is(got, tt.want) {
-					t.Errorf("Saving products(%v) = %v; want %v", tt.input, got, tt.want)
-				}
+			firstOrder := tt.input[0]
+			nextOrder := tt.input[1]
+
+			if err := service.Create(ctx, firstOrder); err != nil {
+				t.Fatalf("first Create() error = %v, want = %v", err, tt.want)
+			}
+
+			err := service.Create(ctx, nextOrder)
+
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("Next Create() error = %v, want = %v", err, tt.want)
 			}
 		})
 	}
@@ -219,19 +225,144 @@ func TestGetOrder(t *testing.T) {
 			ID:   "13",
 			want: ordersservice.ErrOrderNotFound,
 		},
+		{
+			name: "Default ID case",
+			input: []ordersservice.Order{
+				{
+					ID: "6",
+					Items: []ordersservice.Item{
+						{SKU: "milk", PriceCents: 199, Quantity: 2},
+						{SKU: "bread", PriceCents: 500, Quantity: 1},
+					},
+				},
+			},
+			ID:   "6",
+			want: nil,
+		},
 	}
-
-	repo := ordersservice.NewMemoryOrderRepository()
-	service := ordersservice.NewOrderService(repo)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			repo := ordersservice.NewMemoryOrderRepository()
+			service := ordersservice.NewOrderService(repo)
+
 			for _, inp := range tt.input {
-				_, got := service.GetOrderByID(inp.ID)
-				if !errors.Is(got, tt.want) {
-					t.Errorf("Get products(%v) = %v; want %v", tt.input, got, tt.want)
+				if err := service.Create(ctx, inp); err != nil {
+					t.Fatalf("Create() error = %v", err)
+				}
+				gotOrder, err := service.GetOrderByID(ctx, tt.ID)
+
+				if !errors.Is(err, tt.want) {
+					t.Fatalf("GetOrderByID() error = %v; want %v", err, tt.want)
+				}
+
+				if tt.want == nil && gotOrder.ID != tt.ID {
+					t.Errorf("GetOrderByID() ID = %q; want %q", gotOrder.ID, tt.ID)
 				}
 			}
 		})
 	}
+}
+
+func TestContextCanceled(t *testing.T) {
+	order := ordersservice.Order{
+		ID: "6",
+		Items: []ordersservice.Item{
+			{SKU: "milk", PriceCents: 199, Quantity: 2},
+			{SKU: "bread", PriceCents: 500, Quantity: 1},
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	repo := ordersservice.NewMemoryOrderRepository()
+	service := ordersservice.NewOrderService(repo)
+
+	err := service.Create(ctx, order)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v; want context.Canceled", err)
+	}
+
+	foundOrder, err := service.GetOrderByID(ctx, order.ID)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("got %v; want context.Canceled", err)
+	}
+
+	t.Logf("Order: %v", foundOrder)
+}
+
+func TestConcurrency(t *testing.T) {
+	order := ordersservice.Order{
+		ID: "6",
+		Items: []ordersservice.Item{
+			{SKU: "milk", PriceCents: 199, Quantity: 2},
+			{SKU: "bread", PriceCents: 500, Quantity: 1},
+		},
+	}
+
+	type Result struct {
+		Success bool
+		ErrText error
+	}
+
+	var wg sync.WaitGroup
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	repo := ordersservice.NewMemoryOrderRepository()
+
+	resultChan := make(chan Result, 100)
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			_, _ = repo.Get(ctx, "1")
+			err := repo.Save(ctx, order)
+
+			var success bool
+
+			if err != nil {
+				success = false
+			} else {
+				success = true
+			}
+
+			resultChan <- Result{Success: success, ErrText: err}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	successCount, dublicateCount := 0, 0
+
+	for res := range resultChan {
+		switch {
+		case res.ErrText == nil:
+			successCount += 1
+		case errors.Is(res.ErrText, ordersservice.ErrDuplicateOrder):
+			dublicateCount++
+		default:
+			t.Errorf("unexpected error: %v", res.ErrText)
+		}
+	}
+
+	if successCount != 1 {
+		t.Errorf("Success save = %v; want = 1", successCount)
+	}
+
+	if dublicateCount != 99 {
+		t.Errorf("dublicate error = %v; want = 99", dublicateCount)
+	}
+
 }

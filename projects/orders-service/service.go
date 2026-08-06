@@ -1,13 +1,14 @@
 package ordersservice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
 
 type OrderRepository interface {
-	Save(order Order) error
-	Get(id string) (Order, error)
+	Save(ctx context.Context, order Order) error
+	Get(ctx context.Context, id string) (Order, error)
 }
 
 type OrderService struct {
@@ -19,6 +20,7 @@ var (
 	ErrInvalidItem    = errors.New("invalid item")
 	ErrOrderNotFound  = errors.New("order not found")
 	ErrDuplicateOrder = errors.New("duplicate order")
+	ErrInvalidIDOrder = errors.New("order ID is empty")
 )
 
 func NewOrderService(repo OrderRepository) *OrderService {
@@ -27,7 +29,11 @@ func NewOrderService(repo OrderRepository) *OrderService {
 	}
 }
 
-func (s *OrderService) Create(order Order) error {
+func (s *OrderService) Create(ctx context.Context, order Order) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if order.IsEmpty() {
 		return ErrEmptyOrder
 	}
@@ -36,16 +42,15 @@ func (s *OrderService) Create(order Order) error {
 		return fmt.Errorf("error: %w", err)
 	}
 
-	_, err := s.repo.Get(order.ID)
-	if err == nil {
-		return ErrDuplicateOrder
-	}
-
-	return s.repo.Save(order)
+	return s.repo.Save(ctx, order)
 }
 
-func (s *OrderService) GetOrderByID(id string) (Order, error) {
-	o, err := s.repo.Get(id)
+func (s *OrderService) GetOrderByID(ctx context.Context, id string) (Order, error) {
+	if err := ctx.Err(); err != nil {
+		return Order{}, err
+	}
+
+	o, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return Order{}, err
 	}
