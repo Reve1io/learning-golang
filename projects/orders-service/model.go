@@ -2,15 +2,15 @@ package ordersservice
 
 import "sync"
 
-type Item struct {
-	SKU        string
-	PriceCents int64
-	Quantity   int
+type Order struct {
+	ID    string `json:"id"`
+	Items []Item `json:"items"`
 }
 
-type Order struct {
-	ID    string
-	Items []Item
+type Item struct {
+	SKU        string `json:"sku"`
+	PriceCents int64  `json:"price_cents"`
+	Quantity   int    `json:"quantity"`
 }
 
 type MemoryOrderRepository struct {

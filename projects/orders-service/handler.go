@@ -2,10 +2,6 @@ package ordersservice
 
 import (
 	"context"
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/http/httptest"
 )
 
 type Handler struct {
@@ -17,14 +13,17 @@ func NewHandler(ctx context.Context, service OrderService) *Handler {
 }
 
 func (h *Handler) Create(ctx context.Context, service OrderService) error {
-	order := Order{}
+	//order := Order{}
 
-	body := json.NewEncoder(io.Writer(order))
+	/*
+		body := json.NewEncoder(io.Writer(order))
 
-	req := httptest.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		"/order",
-		body,
-	)
+		req := httptest.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			"/order",
+			body,
+		)
+	*/
+	return ErrDuplicateOrder
 }

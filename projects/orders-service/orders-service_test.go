@@ -1,8 +1,11 @@
 package ordersservice_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"reflect"
 	"sync"
 	ordersservice "test/projects/orders-service"
 	"testing"
@@ -364,5 +367,89 @@ func TestConcurrency(t *testing.T) {
 	if dublicateCount != 99 {
 		t.Errorf("dublicate error = %v; want = 99", dublicateCount)
 	}
+}
 
+func TestOrderMarshal(t *testing.T) {
+	tests := []struct {
+		name  string
+		input ordersservice.Order
+		want  []byte
+	}{
+		{
+			name: "marshal: default normal struct",
+			input: ordersservice.Order{
+				ID: "order-1",
+				Items: []ordersservice.Item{
+					{SKU: "milk", PriceCents: 199, Quantity: 2},
+					{SKU: "bread", PriceCents: 500, Quantity: 1},
+				},
+			},
+			want: []byte{123, 34, 105, 100, 34, 58, 34, 111, 114, 100, 101, 114, 45, 49, 34, 44, 34, 105, 116, 101, 109, 115, 34, 58, 91, 123, 34, 115, 107, 117, 34, 58, 34, 109, 105, 108, 107, 34, 44, 34, 112, 114, 105, 99, 101, 95, 99, 101, 110, 116, 115, 34, 58, 49, 57, 57, 44, 34, 113, 117, 97, 110, 116, 105, 116, 121, 34, 58, 50, 125, 44, 123, 34, 115, 107, 117, 34, 58, 34, 98, 114, 101, 97, 100, 34, 44, 34, 112, 114, 105, 99, 101, 95, 99, 101, 110, 116, 115, 34, 58, 53, 48, 48, 44, 34, 113, 117, 97, 110, 116, 105, 116, 121, 34, 58, 49, 125, 93, 125},
+		},
+		{
+			name: "marshal: item nil",
+			input: ordersservice.Order{
+				ID:    "order-1",
+				Items: nil,
+			},
+			want: []byte{123, 34, 105, 100, 34, 58, 34, 111, 114, 100, 101, 114, 45, 49, 34, 44, 34, 105, 116, 101, 109, 115, 34, 58, 110, 117, 108, 108, 125},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.input)
+			if err != nil {
+				t.Error(err)
+			}
+
+			resultEqual := bytes.Equal(data, tt.want)
+			if resultEqual != true {
+				t.Errorf("result equal bytes: got = %v; want = %v", data, tt.want)
+			}
+		})
+	}
+}
+
+func TestOrderUnmarshal(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+		want  ordersservice.Order
+	}{
+		{
+			name:  "unmarshal: default normal struct",
+			input: []byte{123, 34, 105, 100, 34, 58, 34, 111, 114, 100, 101, 114, 45, 49, 34, 44, 34, 105, 116, 101, 109, 115, 34, 58, 91, 123, 34, 115, 107, 117, 34, 58, 34, 109, 105, 108, 107, 34, 44, 34, 112, 114, 105, 99, 101, 95, 99, 101, 110, 116, 115, 34, 58, 49, 57, 57, 44, 34, 113, 117, 97, 110, 116, 105, 116, 121, 34, 58, 50, 125, 44, 123, 34, 115, 107, 117, 34, 58, 34, 98, 114, 101, 97, 100, 34, 44, 34, 112, 114, 105, 99, 101, 95, 99, 101, 110, 116, 115, 34, 58, 53, 48, 48, 44, 34, 113, 117, 97, 110, 116, 105, 116, 121, 34, 58, 49, 125, 93, 125},
+			want: ordersservice.Order{
+				ID: "order-1",
+				Items: []ordersservice.Item{
+					{SKU: "milk", PriceCents: 199, Quantity: 2},
+					{SKU: "bread", PriceCents: 500, Quantity: 1},
+				},
+			},
+		},
+		{
+			name:  "unmarshal: item nil",
+			input: []byte{123, 34, 105, 100, 34, 58, 34, 111, 114, 100, 101, 114, 45, 49, 34, 44, 34, 105, 116, 101, 109, 115, 34, 58, 110, 117, 108, 108, 125},
+			want: ordersservice.Order{
+				ID:    "order-1",
+				Items: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var order ordersservice.Order
+			err := json.Unmarshal(tt.input, &order)
+			if err != nil {
+				t.Error(err)
+			}
+
+			resultEqual := reflect.DeepEqual(order, tt.want)
+			if resultEqual != true {
+				t.Errorf("result equal bytes: got = %v; want = %v", order, tt.want)
+			}
+		})
+	}
 }
